@@ -1,54 +1,51 @@
-# Shape of Dreams ModDocs Toolchain & Pipeline Resources
+# sod-docs-resources
 
-This repository contains the standalone scraping, parsing, compilation, and code generation toolchain used to extract, normalize, and build the Shape of Dreams Modding Documentation.
+Standalone scripts used to scrape, parse, and compile the Shape of Dreams modding documentation.
 
-If the upstream documentation changes or you need to recreate the entire pipeline from scratch, these scripts allow full reproduction of the dataset and static site.
+These tools were used to build the data in [docs-data](https://github.com/DocsHub-SoD/docs-data) and generate the site in [docs-site](https://github.com/DocsHub-SoD/docs-site). They are kept here so anyone can re-run the pipeline or adapt it if the game updates.
 
 ---
 
-## Toolchain Architecture
+## Scripts
 
 1. **`scraper.py`**:
-   - Offline-first polite scraper using standard Python libraries.
-   - Downloads `manifest.json`, `xrefmap.yml`, and all 898 DocFX API HTML pages into `cache/raw_html/`.
-   - Built-in retry mechanism with jitter to prevent rate-limiting (HTTP 429).
-   - If files are already cached locally, no network requests are dispatched.
+   - Downloads `manifest.json`, `xrefmap.yml`, and the 898 HTML API pages from the official DocFX docs into `cache/raw_html/`.
+   - Uses standard library `urllib` and `ThreadPoolExecutor`.
+   - Checks if files already exist locally before downloading to prevent unnecessary requests.
 
 2. **`parser.py`**:
-   - Parses raw DocFX HTML files into normalized, strongly-typed JSON models.
-   - Extracts member declarations, summaries, inheritance trees, interfaces, parameters, and return types.
-   - Outputs individual JSON files to `data/api/` and a summary index to `data/api-catalog.json`.
+   - Parses the cached HTML pages using `BeautifulSoup4`.
+   - Extracts types, signatures, parameters, inheritance, and available comments into JSON files (`data/api/`).
 
-3. **`generator.py`**:
-   - Transforms JSON models into clean, cross-linked VitePress Markdown files for `docs/api/`.
-   - Automatically converts type references (e.g. `Entity`, `Actor`) into direct hyperlinks.
-   - Handles Vue/VitePress tag escaping (`&lt;`, `&gt;`).
+3. **`compile_db.py`**:
+   - Reads the parsed JSON files and generates:
+     - `api.db`: SQLite database with indexes on types, members, and parameters.
+     - `api-graph.json`: Dependency graph mapping inheritance and interfaces.
 
-4. **`compile_db.py`**:
-   - Ingests the normalized JSON models and compiles:
-     - `api.db`: Indexed SQLite database with foreign keys and query indices.
-     - `api-graph.json`: Lightweight dependency graph for AI models.
+4. **`generator.py`**:
+   - Converts the JSON models into VitePress-compatible Markdown pages with automatic cross-linking between known game types.
 
 ---
 
 ## Requirements & Usage
 
 ```bash
-# Pure standard library (Python 3.10+) with BeautifulSoup4
+# Requires Python 3.10+ and BeautifulSoup4
 pip install beautifulsoup4
 
-# 1. Scrape raw HTML to cache
+# 1. Download official docs into local cache
 python scraper.py
 
-# 2. Parse HTML to structured JSON
+# 2. Parse HTML into JSON models
 python parser.py
 
-# 3. Build SQLite database and knowledge graph
+# 3. Build SQLite DB and graph
 python compile_db.py
 
-# 4. Generate VitePress Markdown pages
+# 4. Generate Markdown for VitePress
 python generator.py
 ```
 
 ## License
-MIT License. Free for community modding maintenance and evolution.
+
+MIT
